@@ -6,7 +6,7 @@
 #include "interrupcion.h"
 #include "termistor.h"
 
-namespace {
+//namespace {
 
 // ============================================================
 // CONFIGURACIÓN GENERAL DE LA APLICACIÓN
@@ -20,9 +20,9 @@ namespace {
 constexpr uint8_t HEATER_PIN = 10U;
 
 // Temperatura objetivo.
-constexpr float CONSIGNA_C = 80.0F;
+float CONSIGNA_C = 0.0F;
 
-} // namespace
+//} // namespace
 
 // ============================================================
 // SETUP
@@ -76,7 +76,7 @@ void loop() {
   //
   // --------------------------------------------------------
 
-  static Controlador controlador;
+  //static uint8_t PID();
 
   static uint32_t numeroMuestra = 0UL;
 
@@ -87,6 +87,12 @@ void loop() {
   // nada.
   // --------------------------------------------------------
 
+  while (Serial.available()>0)  {
+    CONSIGNA_C=Serial.parseFloat();
+}
+
+//    
+  
   if (!Interrupcion::consumirEvento()) {
     return;
   }
@@ -119,8 +125,6 @@ void loop() {
 
     analogWrite(HEATER_PIN, 0);
 
-    controlador.reiniciar();
-
     return;
   }
 
@@ -134,7 +138,7 @@ void loop() {
   // CONTROLADOR
   // --------------------------------------------------------
 
-  const uint8_t pwm = controlador.calcular(error);
+  const uint8_t pwm = PID(error);
 
   // --------------------------------------------------------
   // ACTUADOR
@@ -152,6 +156,10 @@ void loop() {
   // --------------------------------------------------------
 
   Serial.print(tiempoMs);
+
+  Serial.write(',');
+
+  Serial.print(CONSIGNA_C);
 
   Serial.write(',');
 

@@ -1,6 +1,5 @@
+#include "Arduino.h"
 #include "controlador.h"
-
-namespace {
 
 // ============================================================
 // COEFICIENTES DEL CONTROLADOR
@@ -11,50 +10,42 @@ namespace {
 // u[k] =
 //      A1 * u[k-1]
 //    + A2 * u[k-2]
+//    + B0 * e[k]
 //    + B1 * e[k-1]
 //    + B2 * e[k-2]
 //
 // ============================================================
 
-constexpr float A1 = 1.987714034298315F;
+float Coef[6] = {0.606530659712, 1.606530659712633, 1 , 594.703904600827, 1183.783138555601, 589.093974386158};
+float Estados[6] = {0,0,0,0,0,0};
 
-constexpr float A2 = -0.987743604415780F;
+float salkm0 = Estados[2];
+float salkm1 = Estados[1];
+float salkm2 = Estados[0];
 
-constexpr float B1 = 0.012022686684899F;
+float entkm0 = Estados[3];
+float entkm1 = Estados[4];
+float entkm2 = Estados[5];
 
-constexpr float B2 = 0.011993116567433F;
+float cskm0 = Coef[2];
+float cskm1 = Coef[1];
+float cskm2 = Coef[0];
 
-// Límites físicos de la salida PWM.
-constexpr float PWM_MINIMO = 0.0F;
-constexpr float PWM_MAXIMO = 255.0F;
+float cekm0 = Coef[3];
+float cekm1 = Coef[4];
+float cekm2 = Coef[5];
 
-} // namespace
 
 // ============================================================
 // CONSTRUCTOR
 // ============================================================
 
-Controlador::Controlador() noexcept
-    : salidaAnterior_(0.0F), salidaAnteanterior_(0.0F), errorAnterior_(0.0F),
-      errorAnteanterior_(0.0F) {}
-
-// ============================================================
-// REINICIAR
-// ============================================================
-
-void Controlador::reiniciar() noexcept {
-  salidaAnterior_ = 0.0F;
-  salidaAnteanterior_ = 0.0F;
-
-  errorAnterior_ = 0.0F;
-  errorAnteanterior_ = 0.0F;
-}
 
 // ============================================================
 // CALCULAR CONTROL
 // ============================================================
 
-uint8_t Controlador::calcular(const float errorActual) noexcept {
+uint8_t PID(const float entkm0) {
   // --------------------------------------------------------
   // Ecuación en diferencias:
   //
@@ -72,26 +63,26 @@ uint8_t Controlador::calcular(const float errorActual) noexcept {
   // iteración.
   // --------------------------------------------------------
 
-  float salida = (A1 * salidaAnterior_) + (A2 * salidaAnteanterior_) +
-                 (B1 * errorAnterior_) + (B2 * errorAnteanterior_);
+  float salkm0 = (cskm1 * salkm1) - (cskm2 * salkm2) + (cekm0 * entkm0) -
+                 (cekm1 * entkm1) + (cekm2 * entkm2);
 
   // --------------------------------------------------------
   // Saturación.
   // --------------------------------------------------------
 
-  if (salida > PWM_MAXIMO) {
-    salida = PWM_MAXIMO;
-  } else if (salida < PWM_MINIMO) {
-    salida = PWM_MINIMO;
+  if (salkm0 > 255) {
+    salkm0 = 255;
+  } else if (salkm0 < 0) {
+    salkm0 = 0;
   }
 
   // --------------------------------------------------------
   // Actualizar memoria de errores.
   // --------------------------------------------------------
 
-  errorAnteanterior_ = errorAnterior_;
+  entkm2 = entkm1;
 
-  errorAnterior_ = errorActual;
+  entkm1 = entkm0;
 
   // --------------------------------------------------------
   // Actualizar memoria de salidas.
@@ -99,9 +90,9 @@ uint8_t Controlador::calcular(const float errorActual) noexcept {
   // Se almacena la salida saturada.
   // --------------------------------------------------------
 
-  salidaAnteanterior_ = salidaAnterior_;
+  salkm2 = salkm1;
 
-  salidaAnterior_ = salida;
+  salkm1 = salkm0;
 
   // --------------------------------------------------------
   // Convertir únicamente al salir del controlador.
@@ -109,5 +100,5 @@ uint8_t Controlador::calcular(const float errorActual) noexcept {
   // Internamente seguimos trabajando en coma flotante.
   // --------------------------------------------------------
 
-  return static_cast<uint8_t>(salida);
+  return static_cast<uint8_t>(salkm0);
 }
